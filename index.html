@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One-prompt mock interview</title>
+<meta name="description" content="One prompt that turns Claude into a 60-minute AI-native coding interview mock: a codebase you didn't write, one planted bug, a benchmark to beat, no answer key.">
+<meta property="og:title" content="One-prompt mock interview">
+<meta property="og:description" content="One prompt that turns Claude into a 60-minute AI-native coding interview mock.">
+<meta property="og:image" content="https://stylet.github.io/one-prompt-mock-interview/cover.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root {
+    --bg: #fbfaf7; --fg: #1d1d1b; --muted: #6b6a66; --line: #e3e1da;
+    --card: #ffffff; --accent: #1f5fbf; --accent-fg: #ffffff; --code-bg: #f3f2ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141413; --fg: #ebe9e3; --muted: #9b9994; --line: #2c2b29;
+      --card: #1c1c1a; --accent: #6ea2ff; --accent-fg: #0f1a2e; --code-bg: #1f1f1d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 16px/1.55 ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 40px 16px 64px; }
+  h1 { font-size: 2rem; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .lede { color: var(--muted); margin: 0 0 28px; font-size: 1.05rem; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 16px; border-radius: 10px;
+         border: 1px solid var(--line); background: var(--card); color: var(--fg); text-decoration: none;
+         font-weight: 600; font-size: 0.95rem; cursor: pointer; }
+  .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .btn[aria-disabled="true"] { opacity: 0.5; pointer-events: none; }
+  .hint { color: var(--muted); font-size: 0.9rem; margin: 0 0 32px; }
+  .hint code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  h2 { font-size: 1.15rem; margin: 32px 0 10px; }
+  ol { padding-left: 22px; } li { margin: 4px 0; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 16px;
+        overflow: auto; white-space: pre-wrap; word-wrap: break-word; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .meta { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .meta span { color: var(--muted); font-size: 0.85rem; }
+  footer { margin-top: 40px; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); padding-top: 16px; }
+  a { color: var(--accent); }
+  .status { color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>One-prompt mock interview</h1>
+  <p class="lede">One prompt that turns Claude into a 60-minute AI-native coding interview mock: a codebase you didn't write, one planted bug, a benchmark to beat, three blocks of rising difficulty, and nothing on disk that gives the answer away.</p>
+
+  <div class="buttons">
+    <a class="btn primary" id="open-claude" href="#" aria-disabled="true">Open in Claude</a>
+    <a class="btn" id="open-chatgpt" href="#" aria-disabled="true">Open in ChatGPT</a>
+    <button class="btn" id="copy" disabled>Copy prompt</button>
+    <a class="btn" id="raw" href="prompt.md">Raw text</a>
+    <a class="btn" href="https://github.com/StyleT/one-prompt-mock-interview">GitHub</a>
+  </div>
+  <p class="hint" id="status">Loading the prompt…</p>
+
+  <h2>How it works</h2>
+  <ol>
+    <li>The buttons open the tool with the full prompt already in the composer. The first thing it does is ask for your target company, role, level and language.</li>
+    <li>It researches that company's current coding round on the web, proposes a scenario and a file tree, and waits for one “yes”.</li>
+    <li>It builds the challenge, proves every target with reference solutions, deletes the proofs, audits for leaks, runs every command and pastes the output.</li>
+    <li>You get an <code>Instruction.md</code>, the code, the data, the tests and a benchmark. Set a 60-minute timer and start.</li>
+  </ol>
+  <p class="hint">The build needs an agent with a shell and web search (Claude Code, Codex, Cursor and similar). A chat tool will do the intake and the research, then tell you where it needs to hand off. For a coding agent, copy the prompt and paste it as the first message in an empty directory.</p>
+
+  <h2 class="meta">The prompt <span id="size"></span></h2>
+  <pre id="prompt">…</pre>
+
+  <footer>
+    Written for Claude Code, nothing Claude-specific in it. Fork it, run it against the company you are preparing for, and open an issue where it cheated.
+    Format facts about real interviews come from public sources; nothing here is from inside any company's process.
+  </footer>
+</main>
+
+<script>
+(async function () {
+  const status = document.getElementById('status');
+  const pre = document.getElementById('prompt');
+  const size = document.getElementById('size');
+  const claude = document.getElementById('open-claude');
+  const chatgpt = document.getElementById('open-chatgpt');
+  const copy = document.getElementById('copy');
+
+  let text;
+  try {
+    const res = await fetch('prompt.md', { cache: 'no-cache' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    text = await res.text();
+  } catch (e) {
+    status.textContent = 'Could not load prompt.md (' + e.message + '). Open the raw text link instead.';
+    return;
+  }
+
+  pre.textContent = text;
+  const enc = encodeURIComponent(text);
+  const claudeUrl = 'https://claude.ai/new?q=' + enc;
+  const chatgptUrl = 'https://chatgpt.com/?q=' + enc;
+  claude.href = claudeUrl; claude.removeAttribute('aria-disabled');
+  chatgpt.href = chatgptUrl; chatgpt.removeAttribute('aria-disabled');
+  copy.disabled = false;
+  size.textContent = text.length.toLocaleString() + ' characters · ' + (enc.length / 1024).toFixed(0) + ' KB as a URL';
+  status.textContent = 'Each button carries the full prompt in the link; nothing is fetched by the tool.';
+
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      copy.textContent = 'Copied';
+      setTimeout(() => (copy.textContent = 'Copy prompt'), 1600);
+    } catch (e) {
+      status.textContent = 'Clipboard blocked; select the text below and copy it.';
+    }
+  });
+
+  // ?open=claude or ?open=chatgpt redirects straight to the tool once the prompt is loaded.
+  const open = new URLSearchParams(location.search).get('open');
+  if (open === 'claude') location.replace(claudeUrl);
+  else if (open === 'chatgpt') location.replace(chatgptUrl);
+})();
+</script>
+</body>
+</html>
